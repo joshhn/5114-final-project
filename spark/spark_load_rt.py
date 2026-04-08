@@ -202,15 +202,17 @@ def extract_alert_cols(df):
     return alert_df
     
 
-def dedupe_df(df, columns_to_ignore = [], columns_to_include = []):
-    # Can decide either to specify which columns to ignore or to include via input. Specifying neither returns default dropDuplicates. 
-    all_columns = df.columns
-    if columns_to_ignore != []:
-        subset_columns = [c for c in all_columns if c not in columns_to_ignore] 
-        return df.dropDuplicates(subset=subset_columns)
-    elif columns_to_include != []:
-        return df.dropDuplicates(subset=columns_to_include)
-    return df.dropDuplicates()
+def dedupe_alerts_to_latest_snapshot(df):
+    """
+    For each alert entity_id on a given service date, keep only the row 
+    from the most recent snapshot_timestamp.
+    """
+    window = Window.partitionBy("service_date", "entity_id").orderBy(desc("snapshot_timestamp"))
+    return (df
+        .withColumn("row_num", row_number().over(window))
+        .filter(col("row_num") == 1)
+        .drop("row_num")
+    )
 
     
 def load_data_from_realtime_s3_to_df(spark, feed_type, service_date):
@@ -247,8 +249,7 @@ def load_data_from_realtime_s3_to_df(spark, feed_type, service_date):
     #    TODO
     elif feed_type == ALERT:
         alert_df = extract_alert_cols(raw_feed_df)        
-        columns_to_ignore = ['hour', 'service_date', 'ingested_at', "snapshot_timestamp", "gtfs_realtime_version"]  # if all columns except these (metadata columns) are the same, then it's safe to drop as a duplicate
-        return dedupe_df(alert_df, columns_to_ignore=columns_to_ignore)
+        return dedupe_alerts_to_latest_snapshot(alert_df)
     else:
         raise ValueError("Feed type must be one of VEHICLE_POSITION, ALERT, TRIP_UPDATE")
 
@@ -353,20 +354,17 @@ def extract_trip_update_cols(df):
 def dedupe_trip_updates(df):
     """
     For each trip instance on a given service date, keep only the final 
-    snapshot it appeared in. A trip that completes normally will disappear 
-    from the feed. Its last appearance reflects its terminal state.
-
-    Since dfs are currently loaded by the hour for trip updates, this only 
-    dedupes snapshots within the same hour.
+    snapshot it appeared in (a completed trip will disappear 
+    from the feed, so its last appearance reflects its terminal state).
     """
     window = Window.partitionBy(
         "service_date", "trip_id", "trip_start_date"
     ).orderBy(desc("snapshot_timestamp"))
 
     return (df
-        .withColumn("rn", row_number().over(window))
-        .filter(col("rn") == 1)
-        .drop("rn")
+        .withColumn("row_num", row_number().over(window))
+        .filter(col("row_num") == 1)
+        .drop("row_num")
     )
 
 
