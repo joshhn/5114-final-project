@@ -5,7 +5,7 @@
 
 -- Idempotency guard
 DELETE FROM LEMMING_DB.FINAL_PROJECT_MART.STOP_EVENTS
-WHERE trip_start_date = '2026-03-10' or trip_start_date is null;
+WHERE trip_start_date = '2026-03-10';
 
 
 INSERT INTO LEMMING_DB.FINAL_PROJECT_MART.STOP_EVENTS (
@@ -88,9 +88,9 @@ enriched AS (
         (s.actual_arrival_seconds - st.arrival_seconds)
                                         AS arrival_delay_seconds,
 
-        -- On-time: within [-120, +300] seconds of scheduled arrival, as described in table creation command
+        -- On-time: within [-150, +300] seconds of scheduled arrival, as described in table creation command
         IFF(
-            (s.actual_arrival_seconds - st.arrival_seconds) BETWEEN -120 AND 300,
+            (s.actual_arrival_seconds - st.arrival_seconds) BETWEEN -150 AND 300,
             TRUE, FALSE
         )                               AS is_on_time,
 
@@ -144,3 +144,4 @@ SELECT
     occupancy_percentage,
     static_version_date
 FROM enriched;
+
