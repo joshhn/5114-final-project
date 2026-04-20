@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS LEMMING_DB.FINAL_PROJECT_MART.METRIC_ALERTS_BY_DAY (
     alert_date       DATE,
     route_id         STRING,
+    route_name       STRING,
     alert_count      INT,
     severe_count     INT,
     warning_count    INT,
