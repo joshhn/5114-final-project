@@ -25,11 +25,11 @@ USING (
     LATERAL FLATTEN(input => PARSE_JSON(active_period), outer => TRUE) ap
     WHERE service_date = $target_service_date
       AND is_deleted = FALSE
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY entity_id, period_index
+        ORDER BY snapshot_timestamp DESC
+    ) = 1
 ) src
-QUALIFY ROW_NUMBER() OVER (
-    PARTITION BY entity_id, period_index
-    ORDER BY snapshot_timestamp DESC
-) = 1
 ON target.entity_id = src.entity_id
 AND target.period_index = src.period_index
 WHEN MATCHED AND src.snapshot_timestamp > target.snapshot_timestamp THEN UPDATE SET

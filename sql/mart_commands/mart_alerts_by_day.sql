@@ -7,7 +7,14 @@ SET target_service_date = TO_DATE('{{ ds }}');
 DELETE FROM FINAL_PROJECT_MART.METRIC_ALERTS_BY_DAY
 WHERE alert_date = $target_service_date;
 
-INSERT INTO FINAL_PROJECT_MART.METRIC_ALERTS_BY_DAY
+INSERT INTO FINAL_PROJECT_MART.METRIC_ALERTS_BY_DAY (
+    alert_date,
+    route_id,
+    alert_count,
+    severe_count,
+    warning_count,
+    info_count
+)
 WITH active_on_date AS (
     SELECT
         far.entity_id,

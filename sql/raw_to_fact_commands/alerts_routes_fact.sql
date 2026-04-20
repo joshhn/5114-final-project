@@ -20,11 +20,11 @@ USING (
       AND is_deleted = FALSE
       AND ie.value:route_id::STRING IS NOT NULL
       AND ie.value:stop_id::STRING IS NOT NULL
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY entity_id, route_id, stop_id
+        ORDER BY snapshot_timestamp DESC
+    ) = 1
 ) src
-QUALIFY ROW_NUMBER() OVER (
-    PARTITION BY entity_id, route_id, stop_id
-    ORDER BY snapshot_timestamp DESC
-) = 1
 ON target.entity_id = src.entity_id
 AND target.route_id = src.route_id
 AND target.stop_id = src.stop_id
