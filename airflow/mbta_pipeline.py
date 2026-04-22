@@ -16,7 +16,7 @@ default_args = {
     "depends_on_past": False,
     "email_on_failure": False,
     "email_on_retry": False,
-    "retries": 3,
+    "retries": 5,
     "retry_delay": timedelta(minutes=1),
 }
 
@@ -48,7 +48,7 @@ def bash_with_env(command: str) -> str:
     schedule="@daily",
     start_date=datetime(2026, 3, 2),  # Start date determines where the backfill begins
     catchup=True,  # Set to True to enable automatic backfilling
-    max_active_runs=1,  # Throttles the backfill so you don't overload your VM/Spark cluster
+    max_active_runs=16,  # Throttles the backfill so you don't overload your VM/Spaterk cluster
     template_searchpath=[SQL_TEMPLATE_SEARCHPATH],
     tags=["mbta", "spark", "snowflake", "daily"],
 )
@@ -65,7 +65,7 @@ def mbta_daily_etl_pipeline():
             "CREATE SCHEMA IF NOT EXISTS FINAL_PROJECT_RAW",
             "CREATE SCHEMA IF NOT EXISTS FINAL_PROJECT_STATIC",
             "CREATE SCHEMA IF NOT EXISTS FINAL_PROJECT_FACT",
-            "CREATE SCHEMA IF NOT EXISTS FINAL_PROJECT_MART"
+            "CREATE SCHEMA IF NOT EXISTS FINAL_PROJECT_MART",
         ],
     )
 
@@ -189,8 +189,18 @@ def mbta_daily_etl_pipeline():
 
     # --- Execution Graph ---
     # Run Schemas and DDLs first
-    ensure_schemas >> [ensure_fact_tables, ensure_mart_tables, ensure_static_tables, ensure_raw_tables]
-    [ensure_fact_tables, ensure_mart_tables, ensure_static_tables, ensure_raw_tables] >> run_spark_static
+    ensure_schemas >> [
+        ensure_fact_tables,
+        ensure_mart_tables,
+        ensure_static_tables,
+        ensure_raw_tables,
+    ]
+    [
+        ensure_fact_tables,
+        ensure_mart_tables,
+        ensure_static_tables,
+        ensure_raw_tables,
+    ] >> run_spark_static
 
     # Once static data is loaded, process real-time feeds
     run_spark_static >> [run_spark_rt_vehicle_positions, run_spark_rt_alerts]
@@ -212,7 +222,6 @@ def mbta_daily_etl_pipeline():
     run_fact_alerts >> run_mart_alerts_by_day_stops
     run_fact_alerts_routes >> run_mart_alerts_by_day_stops
     run_fact_alerts_active_periods >> run_mart_alerts_by_day_stops
-    
 
 
 # Instantiate the DAG
