@@ -56,6 +56,7 @@ Set at least:
 2. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
 3. `SNOWFLAKE_URL`, `SNOWFLAKE_USER`, `SNOWFLAKE_DATABASE`, `SNOWFLAKE_WAREHOUSE`
 4. `SNOWFLAKE_PRIVATE_KEY_PATH`, `SNOWFLAKE_PRIVATE_KEY_PASSWORD`
+5. `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` (Postgres metadata DB URI)
 
 Load env vars into current shell:
 
@@ -81,9 +82,33 @@ protoc --descriptor_set_out=gtfs-realtime.desc --include_imports gtfs-realtime.p
 cd ..
 ```
 
-## 5. Airflow initialization
+## 5. Airflow metadata DB (Postgres) and initialization
 
 Because `.env` sets `AIRFLOW_HOME` and `AIRFLOW__CORE__DAGS_FOLDER`, this stays local to the repo.
+
+If Airflow services are already running, stop them before switching metadata DB backends:
+
+```bash
+pkill -f "airflow api-server" || true
+pkill -f "airflow scheduler" || true
+pkill -f "airflow dag-processor" || true
+pkill -f "airflow triggerer" || true
+```
+
+Create local Postgres metadata DB (one-time):
+
+```bash
+brew install postgresql@16
+brew services start postgresql@16
+createuser -s "$(whoami)" || true
+createdb airflow_meta || true
+```
+
+Verify the configured metadata DB URI from `.env`:
+
+```bash
+echo "$AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"
+```
 
 Initialize DB:
 
@@ -187,7 +212,7 @@ set +a
 airflow dag-processor
 ```
 
-Terminal D (recommended for full Airflow 3 local stack):
+Terminal D (optional; only needed for deferrable operators/sensors):
 
 ```bash
 source .venv/bin/activate
@@ -225,8 +250,8 @@ source .env
 set +a
 airflow backfill create \
   --dag-id mbta_daily_etl_pipeline \
-  --from-date 2026-03-08 \
-  --to-date 2026-03-10
+  --from-date 2026-03-02 \
+  --to-date 2026-04-20
 ```
 
 ## 10. Verify outputs
@@ -239,31 +264,7 @@ Then validate Snowflake table changes for the run date in:
 2. FACT tables.
 3. MART tables.
 
-## 11. Common failure points
-
-1. `TemplateNotFound` for SQL:
-- Ensure DAG `template_searchpath` points to `${PROJECT_DIR}/sql`.
-- Ensure `.env` has correct `PROJECT_DIR`.
-
-2. Spark cannot access S3:
-- Verify AWS credentials in `.env`.
-- Verify bucket paths in `S3_RT_PATH_PREFIX` and `S3_STATIC_PATH_PREFIX`.
-
-3. Snowflake key errors:
-- Verify `SNOWFLAKE_PRIVATE_KEY_PATH` and `SNOWFLAKE_PRIVATE_KEY_PASSWORD`.
-
-4. Realtime ignores date/feed:
-- Ensure you are running the updated script via DAG or helper script.
-
-5. `MFA authentication is required` in Airflow SQL tasks:
-- Use key-pair auth in `AIRFLOW_CONN_SNOWFLAKE_DEFAULT` (include `private_key_file=` in the URI query params).
-- Avoid password auth for Airflow connection if your account enforces MFA for programmatic access.
-
-6. `Schema ... does not exist or not authorized`:
-- Ensure your SQL does not hardcode a different database than your `AIRFLOW_CONN_SNOWFLAKE_DEFAULT` database.
-- Ensure schemas exist before table creation (the DAG now runs `ensure_schemas` before fact/mart DDL).
-
-## 12. Cleanup and return to base state
+## 11. Cleanup and return to base state
 
 Stop services:
 
@@ -286,6 +287,9 @@ Unset shell vars in current terminal:
 
 ```bash
 unset PROJECT_DIR AIRFLOW_HOME AIRFLOW__CORE__DAGS_FOLDER AIRFLOW__CORE__LOAD_EXAMPLES
+unset AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+unset AIRFLOW__CORE__PARALLELISM AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG
+unset AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG AIRFLOW__SCHEDULER__PARSING_PROCESSES
 unset AIRFLOW_CONN_SNOWFLAKE_DEFAULT
 unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
 unset S3_RT_PATH_PREFIX S3_STATIC_PATH_PREFIX REALTIME_SPEC_PATH
@@ -295,7 +299,7 @@ unset SNOWFLAKE_PRIVATE_KEY_PATH SNOWFLAKE_PRIVATE_KEY_PASSWORD
 unset SERVICE_DATE RT_FEED_TYPE SPARK_PACKAGES
 ```
 
-## 13. Security checklist
+## 12. Security checklist
 
 1. Keep `.env` untracked.
 2. Never commit private key files.
