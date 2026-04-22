@@ -6,8 +6,7 @@ def render(query, start_date, end_date, route_filter):
     st.subheader("Service delivered %")
     st.caption(
         "% of scheduled trips that were actually delivered in entirety, "
-        "without being cancelled or missing from the real-time feed. "
-        "Hover over a point to see the breakdown of each trip bucket."
+        "without being cancelled or missing from the real-time feed (no-show)."
     )
 
     sd_df = query(f"""

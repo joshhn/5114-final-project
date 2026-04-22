@@ -71,3 +71,51 @@ def render(query, start_date, end_date, route_filter):
     else:
         fig.update_xaxes(tickformat="%Y-%m-%d", dtick="D1")
     st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown(
+        "**Top 10 routes with lowest on-time performance**  \n"
+        "<span style='color: gray; font-size: 0.875em;'>"
+        "Ranked across all routes in the selected date range <b>Route filters will not affect this view</b>."
+        "</span>",
+        unsafe_allow_html=True,
+    )
+
+    worst_routes_df = query(f"""
+        SELECT
+            route_name,
+            COUNT(*) AS event_count,
+            AVG(CASE WHEN is_on_time THEN 1.0 ELSE 0 END) * 100 AS on_time_pct,
+            AVG(CASE WHEN arrival_delay_seconds < -150 THEN 1.0 ELSE 0 END) * 100 AS early_pct,
+            AVG(CASE WHEN arrival_delay_seconds > 300 THEN 1.0 ELSE 0 END) * 100 AS late_pct
+        FROM LEMMING_DB.FINAL_PROJECT_MART.METRIC_STOP_EVENTS
+        WHERE trip_start_date BETWEEN '{start_date}' AND '{end_date}'
+          AND is_on_time IS NOT NULL
+          AND arrival_delay_seconds IS NOT NULL
+          AND route_name IS NOT NULL
+        GROUP BY route_name
+        HAVING COUNT(*) >= 100
+        ORDER BY on_time_pct ASC
+        LIMIT 10
+    """)
+
+    if worst_routes_df.empty:
+        st.info("No route-level on-time performance data for selected date range.")
+    else:
+        display_df = worst_routes_df.rename(columns={
+            "ROUTE_NAME": "Route",
+            "EVENT_COUNT": "# Data Points",
+            "ON_TIME_PCT": "On-time %",
+            "EARLY_PCT": "Early %",
+            "LATE_PCT": "Late %",
+        })[["Route", "# Data Points", "On-time %", "Early %", "Late %"]]
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "# Data Points": st.column_config.NumberColumn(format="%d"),
+                "On-time %": st.column_config.NumberColumn(format="%.1f%%"),
+                "Early %": st.column_config.NumberColumn(format="%.1f%%"),
+                "Late %": st.column_config.NumberColumn(format="%.1f%%"),
+            },
+        )

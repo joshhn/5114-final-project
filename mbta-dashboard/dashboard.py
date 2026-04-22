@@ -34,8 +34,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Header ───────────────────────────────────────────────────
-st.title("CSE5114 MBTA Bus Performance Dashboard")
-st.caption(f"Live data collected every 60 seconds via MBTA GTFS-RT API · Refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S ET')}")
+st.title("MBTA Bus Performance Dashboard")
+st.caption(f"Historical metrics are available for up to 2 days from the present. Live data collected every 60 seconds via MBTA GTFS-RT API · Refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S ET')}")
 
 # ── Sidebar filters ──────────────────────────────────────────
 st.sidebar.header("Filters")
@@ -113,4 +113,4 @@ with tab8:
 
 # ── Footer ────────────────────────────────────────────────────
 st.divider()
-st.caption("MBTA Bus Performance Dashboard · Data: MBTA GTFS-RT API · Pipeline: AWS Lambda → S3 → Spark → Snowflake · Built with Streamlit")
+st.caption("MBTA Bus Performance Dashboard · Data Source: MBTA GTFS APIs · Built with Streamlit")
