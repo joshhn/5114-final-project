@@ -48,7 +48,7 @@ def bash_with_env(command: str) -> str:
     schedule="@daily",
     start_date=datetime(2026, 3, 2),  # Start date determines where the backfill begins
     catchup=True,  # Set to True to enable automatic backfilling
-    max_active_runs=16,  # Throttles the backfill so you don't overload your VM/Spaterk cluster
+    max_active_runs=16,  # Throttles the backfill so you don't overload your VM/Spark cluster
     template_searchpath=[SQL_TEMPLATE_SEARCHPATH],
     tags=["mbta", "spark", "snowflake", "daily"],
 )
