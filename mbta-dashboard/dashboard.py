@@ -9,6 +9,7 @@ from tabs.stop_events_tab import render as render_stop_events
 from tabs.alerts_route_tab import render as render_alerts_route
 from tabs.alerts_stop_tab import render as render_alerts_stop
 from tabs.on_time_performance_tab import render as render_on_time_performance
+from tabs.service_delivered_tab import render as render_service_delivered
 
 
 st.set_page_config(
@@ -33,8 +34,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Header ───────────────────────────────────────────────────
-st.title("CSE5114 MBTA Bus Performance Dashboard")
-st.caption(f"Live data collected every 60 seconds via MBTA GTFS-RT API · Refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S ET')}")
+st.title("MBTA Bus Performance Dashboard")
+st.caption(f"Historical metrics are available for up to 2 days from the present. Live data collected every 60 seconds via MBTA GTFS-RT API · Refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S ET')}")
 
 # ── Sidebar filters ──────────────────────────────────────────
 st.sidebar.header("Filters")
@@ -69,12 +70,13 @@ if not selected_routes:
 route_filter = "', '".join(selected_routes)
 
 # ── Tabs ─────────────────────────────────────────────────────
-tab0, tab2, tab5, tab6, tab7 = st.tabs([
+tab0, tab2, tab5, tab6, tab7, tab8 = st.tabs([
     "Live tab",
     "Occupancy %",
     "Alerts by route",
-    "Alerts by stop", 
-    "On time performance"
+    "Alerts by stop",
+    "On time performance",
+    "Service delivered %"
 ])
 
 # ── Tab 0: Live tab ──────────────────────────────────────────
@@ -106,6 +108,9 @@ with tab6:
 with tab7:
     render_on_time_performance(query, start_date, end_date, route_filter)
 
+with tab8:
+    render_service_delivered(query, start_date, end_date, route_filter)
+
 # ── Footer ────────────────────────────────────────────────────
 st.divider()
-st.caption("MBTA Bus Performance Dashboard · Data: MBTA GTFS-RT API · Pipeline: AWS Lambda → S3 → Spark → Snowflake · Built with Streamlit")
+st.caption("MBTA Bus Performance Dashboard · Data Source: MBTA GTFS APIs · Built with Streamlit")

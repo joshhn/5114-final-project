@@ -95,8 +95,14 @@ def render(query, start_date, end_date, route_filter):
         fig.update_xaxes(tickformat="%Y-%m-%d", dtick="D1")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("Top 10 most crowded routes")
-    st.caption("Ranked by snapshot-weighted average occupancy across the selected date range. **Route filters do not affect this view.**")
+    st.markdown(
+        "**Top 10 most crowded routes**  \n"
+        "<span style='color: gray; font-size: 0.875em;'>"
+        "Ranked by snapshot-weighted average occupancy across the selected date range. "
+        "<b>Route filters do not affect this view.</b>"
+        "</span>",
+        unsafe_allow_html=True,
+    )
 
     top_routes_df = query(f"""
         SELECT *

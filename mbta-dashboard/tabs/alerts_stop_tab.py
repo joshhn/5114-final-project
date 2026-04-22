@@ -4,7 +4,7 @@ import plotly.express as px
 
 def render(query, start_date, end_date):
     st.subheader("Alert hotspots by stop")
-    st.caption("Aggregated across the selected date range for each stop. **Route filters will not affect this view.**")
+    st.caption("Number of alerts affecting bus stops in the system for the selected date range. **Route filters will not affect this view.**")
 
     alerts_stop_df = query(f"""
         SELECT
@@ -25,7 +25,9 @@ def render(query, start_date, end_date):
     if not alerts_stop_df.empty:
         stop_agg = alerts_stop_df.groupby(['STOP_NAME','STOP_LAT','STOP_LON']).agg(
             ALERT_COUNT=('ALERT_COUNT','sum'),
-            SEVERE_COUNT=('SEVERE_COUNT','sum')
+            SEVERE_COUNT=('SEVERE_COUNT','sum'),
+            WARNING_COUNT=('WARNING_COUNT','sum'),
+            INFO_COUNT=('INFO_COUNT','sum'),
         ).reset_index()
 
         fig_map = px.scatter_mapbox(
@@ -36,26 +38,74 @@ def render(query, start_date, end_date):
             color='SEVERE_COUNT',
             hover_name='STOP_NAME',
             hover_data={'ALERT_COUNT': True, 'SEVERE_COUNT': True},
-            color_continuous_scale='Reds',
+            color_continuous_scale=px.colors.sequential.Reds[3:],
             size_max=20,
-            zoom=11,
+            zoom=10.75,
             title='Alert hotspots',
             subtitle='Bubble size = alert count, Color = number of severe alerts'
         )
         fig_map.update_layout(
             mapbox_style='carto-positron',
             height=500,
-            margin={"r":0,"t":50,"l":0,"b":0}
+            margin={"r":0,"t":60,"l":0,"b":0}
         )
         st.plotly_chart(fig_map, use_container_width=True)
 
-        st.subheader("Stops most affected by alerts")
-        top_stops = stop_agg.sort_values('ALERT_COUNT', ascending=False).head(10)
-        top_stops = top_stops[['STOP_NAME','ALERT_COUNT','SEVERE_COUNT']].rename(columns={
-            'STOP_NAME': 'Stop',
-            'ALERT_COUNT': 'Total alerts',
-            'SEVERE_COUNT': 'Severe alerts'
-        })
-        st.dataframe(top_stops, use_container_width=True, hide_index=True)
+        type_to_col = {
+            "SEVERE": "SEVERE_COUNT",
+            "WARNING": "WARNING_COUNT",
+            "INFO": "INFO_COUNT",
+        }
+        legend_names = {
+            'SEVERE_COUNT': 'SEVERE',
+            'WARNING_COUNT': 'WARNING',
+            'INFO_COUNT': 'INFO',
+        }
+        if "top_stops_alert_types" not in st.session_state:
+            st.session_state["top_stops_alert_types"] = list(type_to_col.keys())
+        selected_types = st.session_state["top_stops_alert_types"]
+
+        if not selected_types:
+            st.info("Select at least one alert type to display the Top 10 ranking.")
+        else:
+            selected_cols = [type_to_col[t] for t in selected_types]
+            stop_ranked = stop_agg.copy()
+            stop_ranked["TOTAL"] = stop_ranked[selected_cols].sum(axis=1)
+            stop_ranked = stop_ranked[stop_ranked["TOTAL"] > 0]
+
+            if stop_ranked.empty:
+                st.info("No stops with the selected alert types in this date range.")
+            else:
+                top_stops = stop_ranked.sort_values('TOTAL', ascending=False).head(10)
+                top_stops_sorted = top_stops.sort_values('TOTAL')
+                top_stops_sorted['STOP_NAME'] = top_stops_sorted['STOP_NAME'].astype(str)
+                fig_top = px.bar(
+                    top_stops_sorted,
+                    x=selected_cols,
+                    y='STOP_NAME',
+                    orientation='h',
+                    title='Top 10 stops most affected by alerts',
+                    labels={'value': 'Alert count', 'STOP_NAME': 'Stop', 'variable': 'Alert type'},
+                    barmode='stack',
+                    color_discrete_map={
+                        'SEVERE_COUNT': '#e63946',
+                        'WARNING_COUNT': '#f4a261',
+                        'INFO_COUNT':    '#457b9d',
+                    },
+                )
+                fig_top.for_each_trace(lambda t: t.update(name=legend_names.get(t.name, t.name)))
+                fig_top.update_yaxes(
+                    type='category',
+                    categoryorder='array',
+                    categoryarray=top_stops_sorted['STOP_NAME'].tolist(),
+                    title=None,
+                )
+                st.plotly_chart(fig_top, use_container_width=True)
+
+        st.multiselect(
+            "Alert types to include in Top 10 ranking",
+            options=list(type_to_col.keys()),
+            key="top_stops_alert_types",
+        )
     else:
         st.info("No alert stop data for selected date range.")
