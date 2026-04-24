@@ -1,5 +1,6 @@
 # Streamlit secrets
 mbta-dashboard/.streamlit/secrets.toml
+mbta-dashboard/rsa_key.p8
 .streamlit/secrets.toml
 
 # Local environment and secrets

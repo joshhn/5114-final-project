@@ -277,6 +277,60 @@ def extract_alert_cols(df):
 
     return alert_df
 
+def extract_trip_update_cols(df):
+    trip_update_df = (df
+        .select(
+            "service_date",
+            "hour",
+            "ingested_at",
+            col("feed.header.timestamp").alias("snapshot_timestamp"),
+            col("feed.header.gtfs_realtime_version").alias("gtfs_realtime_version"),
+            explode("feed.entity").alias("entity")
+        )
+        .where(col("entity.trip_update").isNotNull())
+        .select(
+            col("service_date"),
+            col("hour"),
+            col("snapshot_timestamp"),
+            col("ingested_at"),
+            col("gtfs_realtime_version"),
+
+            # Entity level
+            col("entity.id").alias("entity_id"),
+            col("entity.is_deleted").alias("is_deleted"),
+
+            # Trip descriptor (scalars flattened)
+            col("entity.trip_update.trip.trip_id").alias("trip_id"),
+            col("entity.trip_update.trip.route_id").alias("route_id"),
+            col("entity.trip_update.trip.direction_id").alias("direction_id"),
+            col("entity.trip_update.trip.start_time").alias("trip_start_time"),
+            col("entity.trip_update.trip.start_date").alias("trip_start_date"),
+            col("entity.trip_update.trip.schedule_relationship").alias("trip_schedule_rel"),
+            # modified_trip is a nested struct — keep as VARIANT
+            col("entity.trip_update.trip.modified_trip").alias("modified_trip"),
+
+            # Vehicle descriptor (scalars flattened)
+            col("entity.trip_update.vehicle.id").alias("vehicle_id"),
+            col("entity.trip_update.vehicle.label").alias("vehicle_label"),
+            col("entity.trip_update.vehicle.license_plate").alias("vehicle_license_plate"),
+            col("entity.trip_update.vehicle.wheelchair_accessible").alias("wheelchair_accessible"),
+
+            # Top-level trip_update scalars
+            col("entity.trip_update.timestamp").alias("trip_update_timestamp"),
+            col("entity.trip_update.delay").alias("delay"),
+
+            # Keep as VARIANT — flatten in Snowflake
+            col("entity.trip_update.stop_time_update").alias("stop_time_update"),
+            col("entity.trip_update.trip_properties").alias("trip_properties"),
+        )
+        .withColumn("snapshot_timestamp", to_eastern("snapshot_timestamp"))
+        .withColumn("trip_update_timestamp", to_eastern("trip_update_timestamp"))
+        .withColumn("trip_start_date", to_date(col("trip_start_date"), "yyyyMMdd"))
+    )
+
+    return trip_update_df
+
+
 
 def dedupe_alerts_to_latest_snapshot(df):
     """
@@ -291,6 +345,73 @@ def dedupe_alerts_to_latest_snapshot(df):
         .filter(col("row_num") == 1)
         .drop("row_num")
     )
+
+def dedupe_trip_updates(df):
+    """
+    For each trip instance on a given service date, keep only the final
+    snapshot it appeared in (a completed trip will disappear
+    from the feed, so its last appearance reflects its terminal state).
+    """
+    window = Window.partitionBy("service_date", "trip_id", "trip_start_date").orderBy(
+        desc("snapshot_timestamp")
+    )
+
+    return (
+        df.withColumn("row_num", row_number().over(window))
+        .filter(col("row_num") == 1)
+        .drop("row_num")
+    )
+
+
+def load_trip_updates_data_from_realtime_s3_to_df(spark, feed_type, service_date, snapshot_stride=5):
+    for hour in range(24):
+        pb_files_from_hour = f"{S3_RT_PATH_PREFIX}{feed_type}/dt={service_date}/hour={str(hour).zfill(2)}/*.pb"
+        files_df = (
+            spark.read.format("binaryFile")
+            .load(pb_files_from_hour)
+            .select("path")
+            .orderBy("path")
+        )
+
+        file_paths = [row["path"] for row in files_df.collect()]
+
+        if not file_paths:
+            print(f"No files found for {pb_files_from_hour}")
+            continue
+
+        if snapshot_stride > 1:
+            file_paths = file_paths[::snapshot_stride]
+
+        try:        
+            raw_feed_df = spark.read.format("binaryFile") \
+            .load(file_paths) \
+            .withColumn("service_date", lit(service_date)) \
+            .withColumn("hour", lit(regexp_extract(input_file_name(), r"hour=(\d{2})", 1).cast("int"))) \
+            .withColumn("ingested_at", lit(current_timestamp())) \
+            .select(
+                    col("service_date"),
+                    col("hour"),
+                    col("ingested_at"),
+                    from_protobuf(
+                        "content",
+                        "transit_realtime.FeedMessage",
+                        descFilePath=REALTIME_SPEC_PATH
+                    ).alias("feed")
+                )
+            trip_update_df = extract_trip_update_cols(raw_feed_df)
+            trip_update_df = trip_update_df.repartition(200, "trip_id", "trip_start_date")
+
+            print(f"Handling hour {hour}")
+            deduped_trip_update_df = dedupe_trip_updates(trip_update_df)
+            
+            write_raw_df_to_snowflake(deduped_trip_update_df, f"RAW_{rt_feed_option.upper()}", service_date, hour)
+
+            
+        except AnalysisException as e:
+            # Directory for hour=02 does not exist on daylight savings
+            print(e)
+            print(f"Skipping path: {pb_files_from_hour}")
+            continue
 
 
 def load_data_from_realtime_s3_to_df(spark, feed_type, service_date):
@@ -388,131 +509,3 @@ if __name__ == "__main__":
         )
 
     spark.stop()
-
-
-# --------------------------------------------------------------------------------------------------------------------------
-#   Below is the code for loading trip update data to Snowflake.
-#   This is all a work in progress and is not yet working as we would like! We are working through out of memory errors.
-# --------------------------------------------------------------------------------------------------------------------------
-
-
-def extract_trip_update_cols(df):
-    trip_update_df = (
-        df.select(
-            "service_date",
-            "hour",
-            "ingested_at",
-            col("feed.header.timestamp").alias("snapshot_timestamp"),
-            col("feed.header.gtfs_realtime_version").alias("gtfs_realtime_version"),
-            explode("feed.entity").alias("entity"),
-        )
-        .where(col("entity.trip_update").isNotNull())
-        .select(
-            col("service_date"),
-            col("hour"),
-            col("snapshot_timestamp"),
-            col("ingested_at"),
-            col("gtfs_realtime_version"),
-            # Entity level
-            col("entity.id").alias("entity_id"),
-            col("entity.is_deleted").alias("is_deleted"),
-            # Trip descriptor
-            col("entity.trip_update.trip.trip_id").alias("trip_id"),
-            col("entity.trip_update.trip.route_id").alias("route_id"),
-            col("entity.trip_update.trip.direction_id").alias("direction_id"),
-            col("entity.trip_update.trip.start_time").alias("trip_start_time"),
-            col("entity.trip_update.trip.start_date").alias("trip_start_date"),
-            col("entity.trip_update.trip.schedule_relationship").alias(
-                "trip_schedule_rel"
-            ),
-            # modified_trip is a nested struct, keep as variant
-            col("entity.trip_update.trip.modified_trip").alias("modified_trip"),
-            # Vehicle descriptor
-            col("entity.trip_update.vehicle.id").alias("vehicle_id"),
-            col("entity.trip_update.vehicle.label").alias("vehicle_label"),
-            col("entity.trip_update.vehicle.license_plate").alias(
-                "vehicle_license_plate"
-            ),
-            col("entity.trip_update.vehicle.wheelchair_accessible").alias(
-                "wheelchair_accessible"
-            ),
-            # Top level trip_update scalars
-            col("entity.trip_update.timestamp").alias("trip_update_timestamp"),
-            col("entity.trip_update.delay").alias("delay"),
-            # Keep as variant, flatten in Snowflake
-            col("entity.trip_update.stop_time_update").alias("stop_time_update"),
-            col("entity.trip_update.trip_properties").alias("trip_properties"),
-        )
-        .withColumn("snapshot_timestamp", to_eastern("snapshot_timestamp"))
-        .withColumn("trip_update_timestamp", to_eastern("trip_update_timestamp"))
-        .withColumn("trip_start_date", to_date(col("trip_start_date"), "yyyyMMdd"))
-    )
-
-    return trip_update_df
-
-
-def dedupe_trip_updates(df):
-    """
-    For each trip instance on a given service date, keep only the final
-    snapshot it appeared in (a completed trip will disappear
-    from the feed, so its last appearance reflects its terminal state).
-    """
-    window = Window.partitionBy("service_date", "trip_id", "trip_start_date").orderBy(
-        desc("snapshot_timestamp")
-    )
-
-    return (
-        df.withColumn("row_num", row_number().over(window))
-        .filter(col("row_num") == 1)
-        .drop("row_num")
-    )
-
-
-def load_trip_updates_data_from_realtime_s3_to_df(spark, feed_type, service_date):
-    for hour in range(24):
-        pb_files_from_hour = f"{S3_RT_PATH_PREFIX}{feed_type}/dt={service_date}/hour={str(hour).zfill(2)}/*.pb"
-        try:
-            raw_feed_df = (
-                spark.read.format("binaryFile")
-                .load(pb_files_from_hour)
-                .withColumn("service_date", lit(service_date))
-                .withColumn(
-                    "hour",
-                    lit(
-                        regexp_extract(input_file_name(), r"hour=(\d{2})", 1).cast(
-                            "int"
-                        )
-                    ),
-                )
-                .withColumn("ingested_at", lit(current_timestamp()))
-                .select(
-                    col("service_date"),
-                    col("hour"),
-                    col("ingested_at"),
-                    from_protobuf(
-                        "content",
-                        "transit_realtime.FeedMessage",
-                        descFilePath=REALTIME_SPEC_PATH,
-                    ).alias("feed"),
-                )
-            )
-            trip_update_df = extract_trip_update_cols(raw_feed_df)
-            trip_update_df = trip_update_df.repartition(
-                200, "trip_id", "trip_start_date"
-            )
-
-            print(f"Handling hour {hour}")
-            deduped_trip_update_df = dedupe_trip_updates(trip_update_df)
-
-            write_raw_df_to_snowflake(
-                deduped_trip_update_df,
-                f"RAW_{feed_type.upper()}",
-                service_date,
-                hour,
-            )
-
-        except AnalysisException as e:
-            # Directory for hour=02 does not exist on daylight savings
-            print(e)
-            print(f"Skipping path: {pb_files_from_hour}")
-            continue
