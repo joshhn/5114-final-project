@@ -1,11 +1,7 @@
 import streamlit as st
 from datetime import datetime, timedelta
 from data_access import query
-from tabs.live_tab_view import render as render_live_tab
-from tabs.system_overview_tab import render as render_system_overview
 from tabs.occupancy_route_tab import render as render_occupancy_route
-from tabs.occupancy_hour_tab import render as render_occupancy_hour
-from tabs.stop_events_tab import render as render_stop_events
 from tabs.alerts_route_tab import render as render_alerts_route
 from tabs.alerts_stop_tab import render as render_alerts_stop
 from tabs.on_time_performance_tab import render as render_on_time_performance
@@ -33,14 +29,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header ───────────────────────────────────────────────────
 st.title("MBTA Bus Performance Dashboard")
-#st.caption(f"Historical metrics are available for up to 2 days from the present. Live data collected every 60 seconds via MBTA GTFS-RT API · Refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S ET')}")
 
-# ── Sidebar filters ──────────────────────────────────────────
 st.sidebar.header("Filters")
 
-# Date range
 date_range = st.sidebar.date_input(
     "Date range",
     value=[datetime(2026, 3, 1), datetime.now()],
@@ -49,7 +41,6 @@ date_range = st.sidebar.date_input(
 start_date = date_range[0] if len(date_range) == 2 else datetime.now() - timedelta(days=14)
 end_date = date_range[1] if len(date_range) == 2 else datetime.now()
 
-# Route selector
 routes_df = query("""
     SELECT DISTINCT ROUTE_ID, ROUTE_SHORT_NAME
     FROM LEMMING_DB.FINAL_PROJECT_MART.METRIC_OCCUPANCY_ROUTE_DAY
@@ -69,8 +60,7 @@ if not selected_routes:
 
 route_filter = "', '".join(selected_routes)
 
-# ── Tabs ─────────────────────────────────────────────────────
-tab2, tab5, tab6, tab7, tab8 = st.tabs([
+occupancy_tab, alerts_route_tab, alerts_stop_tab, otp_tab, service_tab = st.tabs([
     "Occupancy %",
     "Alerts by route",
     "Alerts by stop",
@@ -78,38 +68,20 @@ tab2, tab5, tab6, tab7, tab8 = st.tabs([
     "Service delivered %"
 ])
 
-# ── Tab 0: Live tab ──────────────────────────────────────────
-# with tab0:
-#     render_live_tab()
-
-# # ── Tab 1: System overview ───────────────────────────────────
-# with tab1:
-#     render_system_overview(query, start_date, end_date)
-
-# ── Tab 2: Occupancy by route ────────────────────────────────
-with tab2:
+with occupancy_tab:
     render_occupancy_route(query, start_date, end_date, route_filter)
 
-# # ── Tab 3: Occupancy by hour ─────────────────────────────────
-# with tab3:
-#     render_occupancy_hour(query, start_date, end_date, route_filter)
-
-# # ── Tab 4: Stop events ───────────────────────────────────────
-# with tab4:
-#     render_stop_events(query, start_date, end_date, route_filter)
-
-with tab5:
+with alerts_route_tab:
     render_alerts_route(query, start_date, end_date, route_filter)
 
-with tab6:
+with alerts_stop_tab:
     render_alerts_stop(query, start_date, end_date)
 
-with tab7:
+with otp_tab:
     render_on_time_performance(query, start_date, end_date, route_filter)
 
-with tab8:
+with service_tab:
     render_service_delivered(query, start_date, end_date, route_filter)
 
-# ── Footer ────────────────────────────────────────────────────
 st.divider()
 st.caption("MBTA Bus Performance Dashboard · Data Source: MBTA GTFS APIs · Built with Streamlit")
