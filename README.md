@@ -11,12 +11,16 @@
 **airflow folder**
 - DAG orchestration is configured for Apache Airflow 3.0.6.
 
+**sql folder** 
+- contains SQL ran in Snowflake for creating all tables and deriving tables from one layer to the next (raw to fact, fact/static to mart)
+
+**mbta-dashboard folder**
+- contains code for the Streamlit dashboard for visualizing the metrics
+
 ## Runtime versions
 
 - Apache Airflow: 3.0.6
 - PySpark: 3.5.0
-
-**sql folder** contains SQL ran in Snowflake for creating all tables and deriving mart tables and fact tables from raw tables.
 
 ## Local environment variables (.env)
 
