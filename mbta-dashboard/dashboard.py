@@ -45,14 +45,20 @@ routes_df = query("""
     SELECT DISTINCT ROUTE_ID, ROUTE_SHORT_NAME
     FROM LEMMING_DB.FINAL_PROJECT_MART.METRIC_OCCUPANCY_ROUTE_DAY
     WHERE ROUTE_SHORT_NAME IS NOT NULL
-    ORDER BY ROUTE_SHORT_NAME
 """)
 
-all_routes = routes_df["ROUTE_SHORT_NAME"].dropna().tolist()
+# list routes in dropdown in numerical order, with non-numeric routes at the very end
+def _route_sort_key(route):
+    try:
+        return (0, int(route), "")
+    except (TypeError, ValueError):
+        return (1, 0, str(route))
+
+all_routes = sorted(routes_df["ROUTE_SHORT_NAME"].dropna().tolist(), key=_route_sort_key)
 selected_routes = st.sidebar.multiselect(
     "Select routes (leave blank for all)",
     options=all_routes,
-    default=all_routes[:8] if len(all_routes) >= 8 else all_routes
+    default=[]
 )
 
 if not selected_routes:
