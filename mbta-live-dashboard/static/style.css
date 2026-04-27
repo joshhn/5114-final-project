@@ -1,0 +1,448 @@
+:root {
+  color-scheme: light;
+  --ink: #1c232b;
+  --muted: #64717f;
+  --line: #d8dee6;
+  --panel: #ffffff;
+  --page: #f4f6f8;
+  --accent: #e33e2f;
+  --accent-dark: #aa241a;
+  --bus: #1d6fb8;
+  --fresh: #1a7f52;
+  --warn: #9a5a00;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--ink);
+  background: var(--page);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 24px;
+  color: white;
+  background: #16212c;
+  border-bottom: 4px solid var(--accent);
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 750;
+}
+
+.topbar p {
+  margin-top: 3px;
+  color: #cbd5df;
+  font-size: 14px;
+}
+
+.feed-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.feed-meta span {
+  padding: 6px 9px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+}
+
+main {
+  padding: 18px 24px 28px;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: minmax(160px, 240px) minmax(250px, 360px) auto auto 1fr auto;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+label span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+select,
+button {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
+select {
+  padding: 0 36px 0 11px;
+}
+
+.toggle-control {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.toggle-control input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.toggle-control span {
+  margin-bottom: 0;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+button {
+  padding: 0 14px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.status-text,
+.warning,
+.note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.warning {
+  justify-self: end;
+  padding: 9px 10px;
+  color: #5f3900;
+  background: #fff2cf;
+  border: 1px solid #f1cf7d;
+  border-radius: 6px;
+}
+
+button:hover {
+  background: var(--accent-dark);
+}
+
+.empty-state {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: #fff9e9;
+  border: 1px solid #ecd28c;
+  border-radius: 8px;
+  color: #6a4800;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.map-shell {
+  min-height: 620px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #dbe4ed;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+  min-height: 620px;
+}
+
+.side-panels {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.panel,
+.fleet-section {
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+h2 {
+  margin-bottom: 12px;
+  font-size: 17px;
+}
+
+.vehicle-card {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 8px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.vehicle-card dt {
+  color: var(--muted);
+}
+
+.vehicle-card dd {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin-top: 12px;
+  color: var(--warn);
+}
+
+.stack-list {
+  display: grid;
+  gap: 9px;
+}
+
+.list-item {
+  padding: 10px 11px;
+  background: #f7f9fb;
+  border: 1px solid #e4e9ee;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.list-item strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.list-item small,
+.empty-copy {
+  color: var(--muted);
+}
+
+.list-item span {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.fleet-section {
+  margin-top: 16px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.section-heading h2 {
+  margin-bottom: 0;
+}
+
+.route-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.route-stats span {
+  padding: 6px 9px;
+  background: #f4f7fa;
+  border: 1px solid #e1e7ed;
+  border-radius: 6px;
+}
+
+.route-stats strong {
+  color: var(--ink);
+}
+
+.fleet-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.fleet-card {
+  display: flex;
+  min-height: 118px;
+  width: 100%;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px;
+  color: var(--ink);
+  text-align: left;
+  background: #f7f9fb;
+  border: 1px solid #e1e7ed;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.fleet-card:hover {
+  background: #f1f6fb;
+  border-color: #b9ccd9;
+}
+
+.fleet-card.is-selected {
+  background: #fff2f0;
+  border-color: #f0b3ad;
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.fleet-card-main,
+.fleet-card-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.fleet-card-main {
+  min-width: 0;
+  gap: 6px;
+}
+
+.fleet-card-main strong {
+  font-size: 16px;
+}
+
+.fleet-card-main span,
+.fleet-card-main small {
+  color: var(--muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.fleet-card-main small {
+  font-size: 13px;
+}
+
+.fleet-card-meta {
+  flex: 0 0 auto;
+  align-items: flex-end;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.freshness {
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.freshness.is-fresh {
+  color: #0f5d3c;
+  background: #dff3e9;
+}
+
+.freshness.is-stale {
+  color: #735100;
+  background: #fff0c2;
+}
+
+.maplibregl-popup-content {
+  border-radius: 6px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 30px rgba(22, 33, 44, 0.2);
+}
+
+.popup-title {
+  margin-bottom: 4px;
+  font-weight: 800;
+}
+
+@media (max-width: 1000px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .side-panels {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .map-shell,
+  #map {
+    min-height: 520px;
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar,
+  main {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .feed-meta {
+    justify-content: flex-start;
+  }
+
+  .controls,
+  .side-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading {
+    display: grid;
+  }
+
+  .route-stats {
+    justify-content: flex-start;
+  }
+
+  .warning {
+    justify-self: stretch;
+  }
+
+  .map-shell,
+  #map {
+    min-height: 440px;
+  }
+
+  .fleet-card {
+    display: grid;
+  }
+
+  .fleet-card-meta {
+    align-items: flex-start;
+  }
+}

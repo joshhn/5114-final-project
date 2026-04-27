@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>5114 Live MBTA Bus Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>5114 Live MBTA Bus Tracker</h1>
+      </div>
+    </header>
+
+    <main>
+      <section class="controls" aria-label="Tracker controls">
+        <label>
+          <span>Choose route</span>
+          <select id="route-select"></select>
+        </label>
+        <label>
+          <span>Choose bus on this route</span>
+          <select id="vehicle-select"></select>
+        </label>
+        <button id="refresh-button" type="button">Refresh</button>
+      </section>
+
+      <section id="empty-state" class="empty-state" hidden></section>
+
+      <section class="content-grid">
+        <div class="map-shell">
+          <div id="map" aria-label="Live bus map"></div>
+        </div>
+
+        <aside class="side-panels">
+          <section class="panel">
+            <h2>Selected Bus</h2>
+            <dl id="vehicle-card" class="vehicle-card"></dl>
+            <p id="vehicle-note" class="note"></p>
+          </section>
+
+          <section class="panel">
+            <h2>Upcoming Stops</h2>
+            <div id="stops-list" class="stack-list"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Route Alerts</h2>
+            <div id="alerts-list" class="stack-list"></div>
+          </section>
+        </aside>
+      </section>
+
+      <section class="fleet-section">
+        <div class="section-heading">
+          <h2>Active Buses On Route</h2>
+          <div id="route-stats" class="route-stats"></div>
+        </div>
+        <div id="vehicle-list" class="fleet-list"></div>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
